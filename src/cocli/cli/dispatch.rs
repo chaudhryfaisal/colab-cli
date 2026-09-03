@@ -585,7 +585,7 @@ fn command_namespace(command: &Option<Commands>) -> &'static str {
             SecretCommands::ExportRedacted => "secret.export-redacted",
         },
         Some(Commands::Auth { command }) => match command {
-            AuthCommands::Login { method } if method == "adc" => "auth.login.adc",
+            AuthCommands::Login { method, .. } if method == "adc" => "auth.login.adc",
             AuthCommands::Login { .. } => "auth.login.oauth2",
             AuthCommands::List { .. } => "auth.list",
             AuthCommands::Status { .. } => "auth.status",
@@ -780,10 +780,10 @@ async fn run(cli: Cli, ui: Ui) -> Result<()> {
 
 async fn handle_auth(cmd: AuthCommands, ui: Ui, json: bool) -> Result<()> {
     match cmd {
-        AuthCommands::Login { method } if method == "adc" => handle_auth_adc_login(ui, json),
-        AuthCommands::Login { .. } => {
+        AuthCommands::Login { method, .. } if method == "adc" => handle_auth_adc_login(ui, json),
+        AuthCommands::Login { listen, port, .. } => {
             let config = load_colab_config(ui.quiet)?;
-            handle_login(&config, ui).await
+            handle_login(&config, ui, listen, port).await
         }
         AuthCommands::Logout { profile: None } => {
             auth::logout()?;
@@ -7707,9 +7707,9 @@ fn open_url(url: &str) -> Result<()> {
     }
 }
 
-async fn handle_login(config: &ColabConfig, ui: Ui) -> Result<()> {
+async fn handle_login(config: &ColabConfig, ui: Ui, listen: String, port: Option<u16>) -> Result<()> {
     let pb = ui.spinner("Opening browser for Google sign-in\u{2026}");
-    match auth::login(config).await {
+    match auth::login(config, &listen, port).await {
         Ok(account) => {
             Ui::spinner_done(pb, &format!("Signed in as {}", account.email));
             ui.print_auth_status(&account.email, &account.name);

@@ -39,10 +39,14 @@ struct UserInfoResponse {
     email: String,
 }
 
-pub async fn run_login_flow(config: &ColabConfig) -> Result<AccountInfo> {
+pub async fn run_login_flow(
+    config: &ColabConfig,
+    listen_host: &str,
+    port: Option<u16>,
+) -> Result<AccountInfo> {
     let (code, redirect_uri, code_verifier) = tokio::time::timeout(
         std::time::Duration::from_secs(FLOW_TIMEOUT_SECS),
-        wait_for_auth_code(config),
+        wait_for_auth_code(config, listen_host, port),
     )
     .await
     .map_err(|_| ColabError::oauth("authentication timed out (2 min)"))?
@@ -105,10 +109,20 @@ pub async fn refresh_access_token(config: &ColabConfig) -> Result<String> {
     Ok(tokens.access_token)
 }
 
-async fn wait_for_auth_code(config: &ColabConfig) -> Result<(String, String, String)> {
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    let port = listener.local_addr()?.port();
-    let redirect_uri = format!("http://127.0.0.1:{port}");
+async fn wait_for_auth_code(
+    config: &ColabConfig,
+    listen_host: &str,
+    port: Option<u16>,
+) -> Result<(String, String, String)> {
+    let bind_port = port.unwrap_or(0);
+    let bind_addr = format!("{listen_host}:{bind_port}");
+    let listener = TcpListener::bind(&bind_addr)
+        .await
+        .map_err(|e| ColabError::oauth(format!("failed to bind {bind_addr}: {e}")))?;
+    let actual_port = listener.local_addr()?.port();
+    // Always use 127.0.0.1 in the redirect URI so OAuth validates,
+    // even when listening on 0.0.0.0 for docker.
+    let redirect_uri = format!("http://127.0.0.1:{actual_port}");
 
     let nonce: String = {
         use std::fmt::Write;

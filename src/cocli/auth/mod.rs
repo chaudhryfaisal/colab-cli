@@ -65,8 +65,8 @@ pub fn invalidate_token_cache() {
     }
 }
 
-pub async fn login(config: &ColabConfig) -> Result<AccountInfo> {
-    let account = oauth::run_login_flow(config).await?;
+pub async fn login(config: &ColabConfig, listen_host: &str, port: Option<u16>) -> Result<AccountInfo> {
+    let account = oauth::run_login_flow(config, listen_host, port).await?;
     invalidate_token_cache();
     Ok(account)
 }

@@ -309,6 +309,12 @@ pub enum AuthCommands {
     Login {
         #[arg(long, default_value = "oauth2", value_parser = ["oauth2", "adc"])]
         method: String,
+        /// Interface to bind the OAuth redirect listener (use 0.0.0.0 inside docker)
+        #[arg(long, default_value = "127.0.0.1", value_name = "HOST")]
+        listen: String,
+        /// Port to bind the OAuth redirect listener (0 = random); URL always uses 127.0.0.1
+        #[arg(long, value_name = "PORT")]
+        port: Option<u16>,
     },
     /// Sign out and clear stored credentials
     Logout { profile: Option<String> },
